@@ -77,9 +77,14 @@ def project_future_prices(df, days_ahead):
     # Project forward
     last_index = recent_df['Day_Index'].iloc[-1]
     future_index = last_index + days_ahead
-    future_price = reg.predict([[future_index]])[0]
+  
+
+
+future_price = reg.predict([[future_index]])[0]
     
-    return future_price
+    return float(future_price) # <--- This converts the array to a simple number
+
+
 
 # --- MAIN APP LOGIC ---
 if st.button("Run AI Analysis"):
