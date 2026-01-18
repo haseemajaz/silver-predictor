@@ -9,16 +9,30 @@ import matplotlib.pyplot as plt
 # --- PAGE CONFIGURATION ---
 st.set_page_config(page_title="Silver Price Pro Forecaster", layout="wide")
 
-# --- CUSTOM CSS ---
+# --- CUSTOM CSS (Hide Scrollbars & Styling) ---
 st.markdown("""
     <style>
+    /* Hide the default Streamlit header/footer */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Hide scrollbar for Chrome, Safari and Opera */
+    ::-webkit-scrollbar {
+        display: none;
+    }
+    /* Hide scrollbar for IE, Edge and Firefox */
+    html {
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;  /* Firefox */
+    }
+    
     .metric-container {
         background-color: #f0f2f6;
         padding: 15px;
         border-radius: 10px;
         margin: 10px 0;
     }
-    .stDataFrame { width: 100%; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -26,7 +40,8 @@ st.title("🥈 Silver Price AI Analyst & Forecaster")
 st.markdown("### Institutional-Grade Analysis for Silver Futures (SI=F)")
 st.write("---")
 
-# --- DATA LOADING ---
+# --- DATA LOADING (Auto-Update every 1 hour) ---
+# ttl=3600 means it refreshes data from Yahoo every 1 hour automatically
 @st.cache_data(ttl=3600)
 def get_data_and_model():
     # 1. Fetch Data
@@ -68,11 +83,11 @@ def get_prediction(model, last_index, days_ahead):
     return float(pred)
 
 # ==========================================
-# MAIN EXECUTION (Runs Immediately)
+# MAIN EXECUTION (Runs Automatically on Load)
 # ==========================================
 
-# Load Data Once
-with st.spinner('Loading market data...'):
+# Load Data Immediately
+with st.spinner('Analyzing live market data...'):
     df, model, recent_df = get_data_and_model()
 
 if df is None:
@@ -160,7 +175,6 @@ with tab2:
         unit_select = st.selectbox("Unit:", ["Troy Ounces (oz)", "Kilograms (kg)", "Grams (g)"])
     
     # Calculate Ounces based on selection
-    # NOTE: We use a separate variable 'ounces_owned_w' to avoid conflict with Tab 1
     if unit_select == "Kilograms (kg)":
         ounces_owned_w = weight_input * 32.1507
     elif unit_select == "Grams (g)":
@@ -168,47 +182,13 @@ with tab2:
     else:
         ounces_owned_w = weight_input
     
-    # Logic to switch based on active tab is hard in Streamlit, 
-    # so we prioritize Weight Tab IF the user is interacting with it, 
-    # otherwise we use Budget Tab values.
-    # However, for simplicity, we update the main variables if this tab is used.
-    
     current_val = ounces_owned_w * current_price
     st.success(f"Your **{weight_input} {unit_select}** is currently worth **${current_val:,.2f}**.")
     
-    # Override if using this tab logic (visual only)
-    # In a real app we might use session state, but here we just display the table below
-    # based on which tab "feels" active. 
-    # To avoid confusion, let's just create a separate table for Tab 2 or merge logic.
-    # MERGE LOGIC:
+    # Logic to prioritize inputs
     if budget_input == 1000.0 and weight_input != 1.0:
-        # User likely edited Weight, not Budget
         ounces_owned = ounces_owned_w
         invest_amount = current_val
-    elif budget_input != 1000.0:
-         # User likely edited Budget
-         pass # ounces_owned is already set from Tab 1
-    else:
-        # Default state, use Tab 1 logic or Tab 2 logic? 
-        # Let's default to Tab 1 unless user is clearly in Tab 2.
-        # Actually, let's just make sure the user knows which one is being used.
-        pass
-
-# Hack for Streamlit: The variables above are calculated sequentially. 
-# We will use 'ounces_owned' from Tab 1 by default, unless the user manually selected Tab 2's specific inputs?
-# No, simpler way: Just display the calculation for whichever result the user wants. 
-# Let's force the table to use the Result from the active Tab context visually.
-
-# We will simply display the table based on "ounces_owned" calculated in Tab 1 
-# unless the user is looking at Tab 2? Streamlit doesn't tell us which tab is open.
-# Improved Logic: We will calculate BOTH tables but only show one? No.
-# let's just start the table calculation using the OUNCES calculated above.
-# If the user changed Tab 2 input last, we want that.
-# But we can't easily know "last changed".
-# So, we will add a checkbox or radio to select "Active Mode" to be precise.
-
-st.write("---")
-st.subheader("📊 Your Portfolio Forecast")
 
 # Create data for table
 data = {
@@ -228,27 +208,9 @@ data = {
     ]
 }
 
-# Check if we should actually be showing Weight based calculation?
-# If the user sets Budget to Default (1000) but Weight to something specific (e.g. 5kg), 
-# we should probably show the 5kg result. 
-# Let's overwrite data if weight input seems custom.
+# Override display logic if using weight
 if weight_input != 1.0 and budget_input == 1000.0:
-    invest_amount = ounces_owned_w * current_price
-    ounces_owned = ounces_owned_w
-    # Recalculate table data
-    data["Your Portfolio Value"] = [
-        f"${(ounces_owned * pred_1d):,.2f}",
-        f"${(ounces_owned * pred_1w):,.2f}",
-        f"${(ounces_owned * pred_1m):,.2f}",
-        f"${(ounces_owned * pred_1y):,.2f}"
-    ]
-    data["Profit / Loss"] = [
-        f"${(ounces_owned * pred_1d) - invest_amount:,.2f}",
-        f"${(ounces_owned * pred_1w) - invest_amount:,.2f}",
-        f"${(ounces_owned * pred_1m) - invest_amount:,.2f}",
-        f"${(ounces_owned * pred_1y) - invest_amount:,.2f}"
-    ]
-    st.caption("Showing forecast for **Weight Input**.")
+     st.caption("Showing forecast for **Weight Input**.")
 else:
     st.caption("Showing forecast for **Budget Input** (Default). To use Weight, change the Weight value and leave Budget at 1000.")
 
